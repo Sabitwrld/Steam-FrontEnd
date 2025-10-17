@@ -1,86 +1,86 @@
-import csrfFetch from "./csrf"
+// src/store/session.js
+import apiFetch from './api';
 
-const SET_SESSION_USER = "session/SET_SESSION_USER"
-export const REMOVE_SESSION_USER = "session/REMOVE_SESSION_USER"
+const SET_CURRENT_USER = "session/SET_CURRENT_USER";
+export const REMOVE_SESSION_USER = "session/REMOVE_SESSION_USER";
 
-const setSessionUser = (user) => {
-  return {
-    type: SET_SESSION_USER,
+const setCurrentUser = (user) => ({
+    type: SET_CURRENT_USER,
     payload: user
-  };
-};
+});
 
-const removeSessionUser = () => {
-  return {
+const removeSessionUser = () => ({
     type: REMOVE_SESSION_USER
-  };
+});
+
+// Helper funksiya: İstifadəçi məlumatlarını localStorage-a yazır
+const storeCurrentUser = (data) => {
+    if (data && data.token) {
+        localStorage.setItem("token", data.token);
+        const user = {
+            id: data.id,
+            fullName: data.fullName,
+            email: data.email, // E-poçtu da saxlayaq
+            roles: data.roles
+        };
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        return user;
+    } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("currentUser");
+        return null;
+    }
 };
 
-const storeCSRFToken = (res) => {
-  const token = res.headers.get('X-CSRF-Token');
-  if (token) sessionStorage.setItem('X-CSRF-Token', token);
-}
+export const login = (userCredentials) => async (dispatch) => {
+    const { email, password } = userCredentials;
+    const response = await apiFetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, rememberMe: true })
+    });
 
-const storeCurrentUser = (user) => {
-  if (user) {
-    sessionStorage.setItem('currentUser', JSON.stringify(user));
-  } else {
-    sessionStorage.removeItem('currentUser');
-  }
+    const data = await response.json();
+    const user = storeCurrentUser(data);
+    dispatch(setCurrentUser(user));
+    return response;
 };
 
-export const login = (user) => async (dispatch) => {
-  const { credential, password } = user;
-  const res = await csrfFetch('/api/session', {
-    method: 'POST',
-    body: JSON.stringify({ credential, password })
-  });
-  const userData = await res.json();
-  storeCurrentUser(userData);
-  dispatch(setSessionUser(userData));
+export const signup = (userData) => async (dispatch) => {
+    const { fullName, email, password } = userData; // Düzəldildi: username yerinə fullName
+    const response = await apiFetch('/auth/register', { // Düzəldildi: /api/users yerinə /api/auth/register
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, password })
+    });
+
+    const data = await response.json();
+    const user = storeCurrentUser(data);
+    dispatch(setCurrentUser(user));
+    return response;
 };
 
-export const signup = (user) => async (dispatch) => {
-  const { username, email, password } = user;
-  const res = await csrfFetch('/api/users', {
-    method: 'POST',
-    body: JSON.stringify({ username, email, password })
-  });
-  const userData = await res.json();
-  storeCurrentUser(userData);
-  dispatch(setSessionUser(userData));
-}
-
-export const logout = () => async (dispatch) => {
-  await csrfFetch('/api/session', {
-    method: 'DELETE'
-  });
-  storeCurrentUser(null);
-  dispatch(removeSessionUser());
-}
-
-export const restoreSession = () => async (dispatch) => {
-  const res = await csrfFetch('/api/session');
-
-  storeCSRFToken(res);
-  const userData = await res.json();
-  storeCurrentUser(userData);
-  dispatch(setSessionUser(userData));
+export const logout = () => (dispatch) => {
+    storeCurrentUser(null); // localStorage-dan silir
+    dispatch(removeSessionUser());
 };
 
-const initialState = { user: JSON.parse(sessionStorage.getItem('currentUser')) };
+export const restoreSession = () => (dispatch) => {
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    if (user) {
+        dispatch(setCurrentUser(user));
+    }
+};
+
+const initialState = { user: JSON.parse(localStorage.getItem('currentUser')) };
 
 export default function sessionReducer(state = initialState, action) {
-  const newState = {...state};
-  switch (action.type) {
-    case SET_SESSION_USER:
-      newState.user = action.payload;
-      return newState;
-    case REMOVE_SESSION_USER:
-      return {
-        user: null
-      };
-    default:
-      return state;
-  }
+    switch (action.type) {
+        case SET_CURRENT_USER:
+            return { ...state, user: action.payload };
+        case REMOVE_SESSION_USER:
+            return { ...state, user: null };
+        default:
+            return state;
+    }
 }
