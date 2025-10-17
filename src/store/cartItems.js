@@ -1,81 +1,55 @@
-import csrfFetch from "./csrf";
+import apiFetch from './api';
 import { REMOVE_SESSION_USER } from "./session";
 
 export const SET_CART_ITEMS = "cartItems/SET_CART_ITEMS";
-const ADD_CART_ITEM = "cartItems/ADD_CART_ITEM";
-const REMOVE_CART_ITEM = "cartItems/REMOVE_CART_ITEM";
 const CLEAR_CART = "cartItems/CLEAR_CART";
 
-const setCartItems = (payload) => { // and also games
-  return {
-    type: SET_CART_ITEMS,
-    payload
-  };
-}
+const setCartItems = (payload) => ({ type: SET_CART_ITEMS, payload });
+export const clearCart = () => ({ type: CLEAR_CART });
 
-const addCartItem = (cartItem) => {
-  return {
-    type: ADD_CART_ITEM,
-    payload: cartItem
-  };
-}
-
-const removeCartItem = (cartItemId) => {
-  return {
-    type: REMOVE_CART_ITEM,
-    payload: cartItemId
-  };
-}
-
-const clearCart = () => {
-  return {
-    type: CLEAR_CART
-  };
-}
-
+// GET /api/cart
 export const fetchCartItems = () => async (dispatch) => {
-  const res = await csrfFetch('/api/cart_items');
-  const data = await res.json();
-  dispatch(setCartItems(data));
-}
+  const data = await apiFetch('/api/cart');
+  // Gelen veriyi normalleştir (ID'leri key yap)
+  const cartItems = data.items.reduce((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+  }, {});
+  dispatch(setCartItems({ cartItems }));
+};
 
+// POST /api/cart/items
 export const createCartItem = (gameId) => async (dispatch) => {
-  const res = await csrfFetch('/api/cart_items', {
+  await apiFetch('/api/cart/items', {
     method: "POST",
-    body: JSON.stringify({gameId: gameId})
+    body: JSON.stringify({ applicationId: gameId }) // Backend 'applicationId' bekliyor
   });
-  const data = await res.json();
-  dispatch(addCartItem(data));
-}
+  dispatch(fetchCartItems()); // Sepeti yeniden çekerek güncel durumu al
+};
 
+// DELETE /api/cart/items/{cartItemId}
 export const deleteCartItem = (cartItemId) => async (dispatch) => {
-  await csrfFetch('/api/cart_items/' + cartItemId, {
+  await apiFetch(`/api/cart/items/${cartItemId}`, {
     method: 'DELETE'
   });
-  dispatch(removeCartItem(cartItemId));
-}
+  dispatch(fetchCartItems()); // Sepeti yeniden çek
+};
 
+// DELETE /api/cart
 export const deleteAllCartItems = () => async (dispatch) => {
-  await csrfFetch('/api/cart_items/all', {
+  await apiFetch('/api/cart', {
     method: 'DELETE'
   });
   dispatch(clearCart());
-}
+};
 
 export default function cartItemsReducer(state = {}, action) {
   switch (action.type) {
     case SET_CART_ITEMS:
-      return action.payload.cartItems;
-    case ADD_CART_ITEM:
-      const cartItem = action.payload;
-      return {...state, ...cartItem};
-    case REMOVE_CART_ITEM:
-      const newState = {...state};
-      delete newState[action.payload];
-      return newState;
+      return action.payload.cartItems || {};
     case CLEAR_CART:
       return {};
-    case REMOVE_SESSION_USER: // when user logs out
+    case REMOVE_SESSION_USER: // Kullanıcı çıkış yaptığında sepeti temizle
       return {};
     default:
       return state;

@@ -1,76 +1,56 @@
-import csrfFetch from "./csrf";
+import apiFetch from "./api";
 import { REMOVE_SESSION_USER } from "./session";
 
 export const SET_WISHLIST_ITEMS = "wishlistItems/SET_WISHLIST_ITEMS";
-export const SET_OTHER_WISHLIST = "wishlistItems/SET_OTHER_WISHLIST"
-const ADD_WISHLIST_ITEM = "wishlistItems/ADD_WISHLIST_ITEM";
-const REMOVE_WISHLIST_ITEM = "wishlistItems/REMOVE_WISHLIST_ITEM";
+export const SET_OTHER_WISHLIST = "wishlistItems/SET_OTHER_WISHLIST";
 
-const setWishlistItems = (payload, visiting) => {
-  const type = visiting ? SET_OTHER_WISHLIST : SET_WISHLIST_ITEMS;
-  return {
-    type,
+const setWishlistItems = (payload, isOtherUser) => ({
+    type: isOtherUser ? SET_OTHER_WISHLIST : SET_WISHLIST_ITEMS,
     payload
-  };
-}
+});
 
-const addWishlistItem = (wishlistItem) => {
-  return {
-    type: ADD_WISHLIST_ITEM,
-    payload: wishlistItem
-  };
-}
+// GET /api/wishlist
+export const fetchWishlistItems = () => async (dispatch) => {
+    const response = await apiFetch('/api/wishlist');
+    const wishlistItems = response.data.reduce((acc, item) => {
+        acc[item.applicationId] = item; // Kolay erişim için applicationId'yi key yapalım
+        return acc;
+    }, {});
+    dispatch(setWishlistItems({ wishlistItems }, false));
+};
 
-const removeWishlistItem = (wishlistItemId) => {
-  return {
-    type: REMOVE_WISHLIST_ITEM,
-    payload: wishlistItemId
-  };
-}
+// POST /api/wishlist
+export const createWishlistItem = (gameId) => async (dispatch) => {
+    await apiFetch('/api/wishlist', {
+        method: "POST",
+        body: JSON.stringify({ applicationId: gameId })
+    });
+    dispatch(fetchWishlistItems()); // Listeyi yeniden çek
+};
 
-export const fetchWishlistItems = (userId, visiting = false) => async (dispatch) => {
-  const res = await csrfFetch('/api/wishlist_items/?user_id=' + userId);
-  const data = await res.json();
-  dispatch(setWishlistItems(data, visiting));
-}
+// DELETE /api/wishlist/application/{applicationId}
+export const deleteWishlistItem = (applicationId) => async (dispatch) => {
+    await apiFetch(`/api/wishlist/application/${applicationId}`, {
+        method: 'DELETE'
+    });
+    dispatch(fetchWishlistItems()); // Listeyi yeniden çek
+};
 
-export const createWishlistItem = (wishlistItem) => async (dispatch) => {
-  const res = await csrfFetch('/api/wishlist_items', {
-    method: "POST",
-    body: JSON.stringify(wishlistItem)
-  });
-  const data = await res.json();
-  dispatch(addWishlistItem(data));
-}
 
-export const deleteWishlistItem = (wishlistItemId) => async (dispatch) => {
-  await csrfFetch('/api/wishlist_items/' + wishlistItemId, {
-    method: 'DELETE'
-  });
-  dispatch(removeWishlistItem(wishlistItemId));
-}
-
-const initialState = {currentUser: {}, otherUser: {}}
+const initialState = { currentUser: {}, otherUser: {} };
 export default function wishlistItemsReducer(state = initialState, action) {
-  const newState = {...state};
-  switch (action.type) {
-    case SET_WISHLIST_ITEMS:
-      newState.currentUser = action.payload.wishlistItems;
-      return newState;
-    case SET_OTHER_WISHLIST:
-      newState.otherUser = action.payload.wishlistItems;
-      return newState;
-    case ADD_WISHLIST_ITEM:
-      const wishlistItem = action.payload;
-      newState.currentUser = {...newState.currentUser, ...wishlistItem};
-      return newState;
-    case REMOVE_WISHLIST_ITEM:
-      delete newState.currentUser[action.payload];
-      return newState;
-    case REMOVE_SESSION_USER: // when user logs out
-      newState.currentUser = {};
-      return newState;
-    default:
-      return state;
-  }
+    const newState = { ...state };
+    switch (action.type) {
+        case SET_WISHLIST_ITEMS:
+            newState.currentUser = action.payload.wishlistItems || {};
+            return newState;
+        case SET_OTHER_WISHLIST:
+            newState.otherUser = action.payload.wishlistItems || {};
+            return newState;
+        case REMOVE_SESSION_USER:
+            newState.currentUser = {};
+            return newState;
+        default:
+            return state;
+    }
 }

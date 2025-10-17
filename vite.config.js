@@ -6,11 +6,12 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       proxy: {
-        '/api': 'http://localhost:5000'
+        // HEDEF PORTU 5280 OLARAK GÜNCELLENDİ
+        '/api': 'http://localhost:5280'
       }
     },
     build: {
-      outDir: '../public/',
+      outDir: 'build', // Genellikle 'build' klasörü kullanılır
       emptyOutDir: true
     },
     plugins: [react()],
