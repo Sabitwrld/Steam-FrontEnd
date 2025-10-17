@@ -5,7 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
 import configureStore from './store';
-import csrfFetch from './store/csrf';
+import apiFetch from './store/api';
 import * as sessionActions from './store/session';
 import * as gameActions from './store/games'
 import * as cartItemActions from './store/cartItems';
@@ -20,7 +20,7 @@ const store = configureStore();
 
 if (process.env.NODE_ENV !== 'production') {
   window.store = store;
-  window.csrfFetch = csrfFetch;
+  window.apiFetch = apiFetch;
   window.sessionActions = sessionActions;
   window.gameActions = gameActions;
   window.cartItemActions = cartItemActions;

@@ -1,28 +1,15 @@
-// src/store/session.js
 import apiFetch from './api';
 
 const SET_CURRENT_USER = "session/SET_CURRENT_USER";
-export const REMOVE_SESSION_USER = "session/REMOVE_SESSION_USER";
+const REMOVE_SESSION_USER = "session/REMOVE_SESSION_USER";
 
-const setCurrentUser = (user) => ({
-    type: SET_CURRENT_USER,
-    payload: user
-});
+const setCurrentUser = (user) => ({ type: SET_CURRENT_USER, payload: user });
+const removeSessionUser = () => ({ type: REMOVE_SESSION_USER });
 
-const removeSessionUser = () => ({
-    type: REMOVE_SESSION_USER
-});
-
-// Helper funksiya: İstifadəçi məlumatlarını localStorage-a yazır
 const storeCurrentUser = (data) => {
     if (data && data.token) {
         localStorage.setItem("token", data.token);
-        const user = {
-            id: data.id,
-            fullName: data.fullName,
-            email: data.email, // E-poçtu da saxlayaq
-            roles: data.roles
-        };
+        const user = { id: data.id, fullName: data.fullName, email: data.email, roles: data.roles };
         localStorage.setItem("currentUser", JSON.stringify(user));
         return user;
     } else {
@@ -34,34 +21,30 @@ const storeCurrentUser = (data) => {
 
 export const login = (userCredentials) => async (dispatch) => {
     const { email, password } = userCredentials;
-    const response = await apiFetch('/auth/login', {
+    const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, rememberMe: true })
     });
-
     const data = await response.json();
     const user = storeCurrentUser(data);
     dispatch(setCurrentUser(user));
-    return response;
 };
 
 export const signup = (userData) => async (dispatch) => {
-    const { fullName, email, password } = userData; // Düzəldildi: username yerinə fullName
-    const response = await apiFetch('/auth/register', { // Düzəldildi: /api/users yerinə /api/auth/register
+    const { fullName, email, password } = userData;
+    const response = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName, email, password })
     });
-
     const data = await response.json();
     const user = storeCurrentUser(data);
     dispatch(setCurrentUser(user));
-    return response;
 };
 
 export const logout = () => (dispatch) => {
-    storeCurrentUser(null); // localStorage-dan silir
+    storeCurrentUser(null);
     dispatch(removeSessionUser());
 };
 
