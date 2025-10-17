@@ -1,71 +1,70 @@
-import csrfFetch from "./csrf";
+import apiFetch from "./api"; // 'csrfFetch' yerine 'apiFetch' import edildi
 
 export const SET_REVIEWS = "reviews/SET_REVIEWS";
-export const ADD_REVIEW = "reviews/ADD_REVIEW";
-const REMOVE_REVIEW = "reviews/REMOVE_REVIEW";
+const ADD_REVIEW = "reviews/ADD_REVIEW";
 
-const setReviews = (payload) => { // and also games
-  return {
-    type: SET_REVIEWS,
-    payload
-  };
-}
+export const setReviews = (reviews) => ({
+  type: SET_REVIEWS,
+  payload: reviews,
+});
 
-const addReview = (payload) => {
-  return {
-    type: ADD_REVIEW,
-    payload
-  };
-}
+const addReview = (review) => ({
+  type: ADD_REVIEW,
+  payload: review,
+});
 
-const removeReview = (reviewId) => {
-  return {
-    type: REMOVE_REVIEW,
-    payload: reviewId
-  };
-}
+// GET /api/reviews/application/{applicationId}
+export const fetchReviews = (applicationId) => async (dispatch) => {
+  if (!applicationId) return;
+  try {
+    const response = await apiFetch(`/api/reviews/application/${applicationId}`);
+    // Backend'den gelen PagedResponse'dan 'data' alanını alıyoruz
+    const reviews = response.data.reduce((acc, review) => {
+      acc[review.id] = review;
+      return acc;
+    }, {});
+    dispatch(setReviews(reviews));
+  } catch (error) {
+    console.error("Failed to fetch reviews:", error);
+  }
+};
 
-export const fetchReviews = (gameId) => async (dispatch) => {
-  const res = await csrfFetch(`/api/games/${gameId}/reviews`);
-  const data = await res.json();
-  dispatch(setReviews(data));
-}
-
-export const createReview = (review) => async (dispatch) => {
-  const res = await csrfFetch(`/api/games/${review.gameId}/reviews`, {
-    method: "POST",
-    body: JSON.stringify(review)
+// POST /api/reviews
+export const createReview = (reviewData) => async (dispatch) => {
+  const newReview = await apiFetch('/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify(reviewData)
   });
-  const data = await res.json();
-  dispatch(addReview(data));
-}
+  dispatch(addReview(newReview));
+  return newReview;
+};
 
-export const updateReview = (review) => async (dispatch) => {
-  const res = await csrfFetch(`/api/reviews/${review.id}`, {
-    method: "PUT",
-    body: JSON.stringify(review)
-  });
-  const data = await res.json();
-  // if (data.errors) return data.errors;
-  dispatch(addReview(data));
-}
+// PUT /api/reviews/{id}
+export const updateReview = (reviewId, reviewData) => async (dispatch) => {
+    const updatedReview = await apiFetch(`/api/reviews/${reviewId}`, {
+        method: 'PUT',
+        body: JSON.stringify(reviewData)
+    });
+    dispatch(addReview(updatedReview)); // Add/update in the store
+    return updatedReview;
+};
 
-export const deleteReview = (reviewId) => async (dispatch) => {
-  await csrfFetch(`/api/reviews/${reviewId}`, {
-    method: 'DELETE'
-  });
-  dispatch(removeReview(reviewId));
-}
+// DELETE /api/reviews/{id}
+export const deleteReview = (reviewId) => async () => {
+    await apiFetch(`/api/reviews/${reviewId}`, {
+        method: 'DELETE'
+    });
+    // Reducer bu eylemi yakalayıp state'den silecek
+};
+
 
 export default function reviewsReducer(state = {}, action) {
+  const newState = { ...state };
   switch (action.type) {
     case SET_REVIEWS:
-      return action.payload.reviews;
+      return action.payload;
     case ADD_REVIEW:
-      return {...state, ...action.payload.review};
-    case REMOVE_REVIEW:
-      const newState = {...state};
-      delete newState[action.payload];
+      newState[action.payload.id] = action.payload;
       return newState;
     default:
       return state;

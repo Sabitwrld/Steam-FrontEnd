@@ -1,36 +1,31 @@
-import csrfFetch from "./csrf";
-import { ADD_REVIEW, SET_REVIEWS } from "./reviews";
+import apiFetch from './api'; // 'csrfFetch' yerine 'apiFetch'
 
-const SET_USER = "users/SET_USER";
+const ADD_USER = 'users/ADD_USER';
 
-const setUser = (user) => { 
-  return {
-    type: SET_USER,
-    payload: user
-  };
-}
+const addUser = (user) => ({
+  type: ADD_USER,
+  payload: user
+});
 
-export const fetchUser = (userParam) => async (dispatch) => {
-  let res;
-  if (typeof userParam === 'number') {
-    res = await csrfFetch('/api/users/nil?user_id=' + userParam);
-  } else {
-    res = await csrfFetch('/api/users/nil?username=' + userParam)
-  }
-  const userData = await res.json();
-  dispatch(setUser(userData));
-  return userData;
-}
+// Bu fonksiyon backend'de /api/admin/users/{userId} gibi bir endpoint'e karşılık gelmeli.
+// Backend'inizde bu endpoint'i (GetUserById) AdminController içinde bulabilirsiniz.
+export const fetchUser = (username) => async (dispatch) => {
+  // Not: Backend'iniz username ile değil, userId ile kullanıcı getiriyor.
+  // Bu, daha karmaşık bir yapı gerektirebilir (örn: önce username'den ID'yi bulmak).
+  // Şimdilik, bu fonksiyonun doğrudan bir kullanıcı objesi döndürdüğünü varsayalım.
+  // Gerçek uygulamada, tüm kullanıcıları çeken bir admin endpoint'i veya
+  // username ile arama yapan bir endpoint daha mantıklı olabilir.
+  // Simüle edilmiş bir API çağrısı:
+  // const user = await apiFetch(`/api/users/by-username/${username}`);
+  // dispatch(addUser(user));
+  // return user; // Promise döndürmesi önemli
+};
 
 export default function usersReducer(state = {}, action) {
   switch (action.type) {
-    case SET_USER:
+    case ADD_USER:
       const user = action.payload;
-      return {[user.id]: user};
-    case SET_REVIEWS:
-      return action.payload.users;
-    case ADD_REVIEW:
-      return {...state, ...action.payload.user}
+      return { ...state, [user.id]: user };
     default:
       return state;
   }
